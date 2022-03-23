@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <dirent.h>
+#include <fcntl.h>
 const char *sysname = "shellfyre";
 
 enum return_codes
@@ -339,6 +341,37 @@ int main()
 	return 0;
 }
 
+void recursive_file_search(char *path,const char *option, const char *file){
+	
+	DIR *d;
+	struct dirent *dir;
+	d = opendir(path);
+
+	if(d){
+		while((dir = readdir(d)) != NULL){
+			if(strcmp(dir->d_name, ".") != 0 && strcmp(dir->d_name, "..") != 0){
+					
+					char buffer[1024];
+					strcpy(buffer, path);
+					strcat(buffer, "/");
+					strcat(buffer, dir->d_name);
+					
+					if(strstr(dir->d_name,file) != NULL){
+						printf("%s \n",buffer);
+						if(strcmp(option,"-o") == 0){
+
+							char s[1050];
+							snprintf(s,sizeof(s),"%s %s","xdg-open",buffer);
+							system(s);
+						}
+					}
+					recursive_file_search(buffer,option,file);
+			}
+		}
+	}
+	closedir(d);
+}
+
 int process_command(struct command_t *command)
 {
 	int r;
@@ -360,12 +393,58 @@ int process_command(struct command_t *command)
 	}
 
 	// TODO: Implement your custom commands here
+	
+	
+	if(strcmp(command->name, "filesearch") == 0 && command->arg_count == 1){
+		DIR *d;
+		struct dirent *dir;
+		d = opendir(".");
+		if (d){
+			while((dir = readdir(d)) != NULL ){
+				if(strstr(dir->d_name,command->args[0]) != NULL){
+					char buffer[1024];
+					strcpy(buffer,".");
+					strcat(buffer,"/");
+					strcat(buffer,dir->d_name);
+					printf("%s \n",buffer);
+				}
+			}
+			closedir(d);
+		}
+		return SUCCESS;
+	}
+	else if(strcmp(command->name, "filesearch") == 0 && strcmp("-r",command->args[0]) == 0 && command->arg_count == 2){
 
+		recursive_file_search(".",command->args[0],command->args[1]);
+
+	}
+	else if(strcmp(command->name, "filesearch") == 0 && strcmp("-o",command->args[0]) == 0 && command->arg_count == 2){
+
+		DIR *d;
+		struct dirent *dir;
+		d = opendir(".");
+		if (d){
+			while((dir = readdir(d)) != NULL){
+				if(strstr(dir->d_name,command->args[1]) != NULL){	
+					
+					char s[300];
+					snprintf(s,sizeof(s),"%s %s","xdg-open",dir->d_name);
+					system(s);		
+					
+				}
+			}
+		}
+	}	
+	
+	else if(strcmp(command->name,"filesearch") == 0 && command->arg_count == 3 &&  ((strcmp("-o",command->args[0]) && strcmp("-r",command->args[1])) || (strcmp("-r",command->args[0]) && strcmp("-o",command->args[1])))){
+		
+		recursive_file_search(".","-o",command->args[2]);
+	}
 	pid_t pid = fork();
 
 	if (pid == 0) // child
 	{	
-		print_command(command);
+		//print_command(command);
 		//printf("%d \n",command->arg_count);
 		//int i;
 		//for(i = 0; i < command->arg_count; i++){
@@ -404,3 +483,5 @@ int process_command(struct command_t *command)
 	printf("-%s: %s: command not found\n", sysname, command->name);
 	return UNKNOWN;
 }
+
+
