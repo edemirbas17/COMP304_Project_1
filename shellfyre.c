@@ -7,7 +7,10 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <dirent.h>
-#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+
 const char *sysname = "shellfyre";
 
 enum return_codes
@@ -372,6 +375,26 @@ void recursive_file_search(char *path,const char *option, const char *file){
 	closedir(d);
 }
 
+
+void take(char *path){
+	
+	const char *sep = "/";
+	struct stat st = {0};
+	char *string = strdup(path);
+	char *token = strtok(string,sep);
+	while(token != NULL){
+		if(stat(token,&st) == -1){
+			mkdir(token,0700);
+			printf("%s \n",token);
+			chdir(token);
+		}
+		else{
+			chdir(token);
+		}
+		token = strtok(NULL,sep);
+	}
+}
+
 int process_command(struct command_t *command)
 {
 	int r;
@@ -394,7 +417,7 @@ int process_command(struct command_t *command)
 
 	// TODO: Implement your custom commands here
 	
-	
+	// Filesearch command:	
 	if(strcmp(command->name, "filesearch") == 0 && command->arg_count == 1){
 		DIR *d;
 		struct dirent *dir;
@@ -440,6 +463,13 @@ int process_command(struct command_t *command)
 		
 		recursive_file_search(".","-o",command->args[2]);
 	}
+
+	// Take command:
+	if(strcmp(command->name,"take") == 0){
+		
+		take(command->args[0]);
+	}
+
 	pid_t pid = fork();
 
 	if (pid == 0) // child
