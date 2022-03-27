@@ -249,7 +249,7 @@ int prompt(struct command_t *command)
 	while (1)
 	{
 		c = getchar();
-		// printf("Keycode: %u\n", c); // DEBUG: uncomment for debugging
+		//printf("Keycode: %u\n", c); // DEBUG: uncomment for debugging
 
 		if (c == 9) // handle tab
 		{
@@ -363,9 +363,18 @@ void recursive_file_search(char *path,const char *option, const char *file){
 						printf("%s \n",buffer);
 						if(strcmp(option,"-o") == 0){
 
-							char s[1050];
-							snprintf(s,sizeof(s),"%s %s","xdg-open",buffer);
-							system(s);
+							//char s[1050];
+							//snprintf(s,sizeof(s),"%s %s","xdg-open",buffer);
+							//system(s);
+							pid_t pid2 = fork();
+							if(pid2 == 0){
+								char *binaryPath = "/bin/xdg-open";
+								execl(binaryPath,binaryPath,buffer,NULL);
+							}
+
+							else{
+								wait(NULL);
+							}
 						}
 					}
 					recursive_file_search(buffer,option,file);
@@ -385,7 +394,7 @@ void take(char *path){
 	while(token != NULL){
 		if(stat(token,&st) == -1){
 			mkdir(token,0700);
-			printf("%s \n",token);
+			//printf("%s \n",token);
 			chdir(token);
 		}
 		else{
@@ -450,9 +459,24 @@ int process_command(struct command_t *command)
 			while((dir = readdir(d)) != NULL){
 				if(strstr(dir->d_name,command->args[1]) != NULL){	
 					
-					char s[300];
-					snprintf(s,sizeof(s),"%s %s","xdg-open",dir->d_name);
-					system(s);		
+					//char s[300];
+					//snprintf(s,sizeof(s),"%s %s","xdg-open",dir->d_name);
+					//system(s);
+					char buffer[1024];
+					strcpy(buffer,".");
+					strcat(buffer,"/");
+					strcat(buffer,dir->d_name);
+					pid_t pid1 = fork();
+					if(pid1 == 0){
+					char *binaryPath = "/bin/xdg-open";
+					char *args[] = {binaryPath, buffer,NULL}; 
+					execv(binaryPath,args);
+					}
+					else{
+						wait(NULL);
+					}
+					
+							
 					
 				}
 			}
