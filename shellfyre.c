@@ -448,8 +448,43 @@ int joker(){
 	return 0;
 }
 
+int directoryHasChanged() {
+	FILE *fptr = fopen(filename,"r");
+	if (fptr == NULL) {
+		printf("Error opening file\n");
+		return -1;
+	}
+	char currentline[100];
+	while(fgets(currentline,sizeof(currentline),fptr) != NULL) {
+		
+	}
+	fclose(fptr);
+	char *a = strtok(currentline,"\n");
+	char cwd[100];
+	if(getcwd(cwd,sizeof(cwd)) != NULL) {
+		if(strcmp(cwd,a) == 0) {
+			return 0;
+		} else {
+			return 1;
+		}
+	}
+	return -1;
+}
+
 int process_command(struct command_t *command)
 {
+	if (directoryHasChanged() == 1) {
+		FILE *fptr = fopen(filename,"a");
+		if (fptr == NULL) {
+			printf("Error opening file\n");
+		}
+		char cwd[100];
+		if(getcwd(cwd,sizeof(cwd)) != NULL) {
+			fprintf(fptr,"%s\n",cwd);
+		}
+		fclose(fptr);
+	}
+	
 	int r;
 	if (strcmp(command->name, "") == 0)
 		return SUCCESS;
@@ -464,20 +499,6 @@ int process_command(struct command_t *command)
 			r = chdir(command->args[0]);
 			if (r == -1 ) {
 				printf("-%s: %s: %s\n", sysname, command->name, strerror(errno));
-			}
-			
-			else{
-				FILE *fptr = fopen(filename,"a");
-				if (fptr == NULL) {
-					printf("Error opening file");
-				}
-				char cwd[100];
-				if(getcwd(cwd, sizeof(cwd)) != NULL) {
-					fprintf(fptr,"%s\n",cwd);
-					//printf("%s\n",cwd);
-				}
-				fclose(fptr);
-
 			}
 			
 			return SUCCESS;
@@ -550,6 +571,9 @@ int process_command(struct command_t *command)
 	// Cdh command: 
 	else if(strcmp(command->name, "cdh") == 0) {
 		int numLine = getNumLine();
+		if (numLine <= 1) {
+			printf("No directory history\n");
+		} else {
 		if (numLine > 10) {
 			//Getting the last 10 cd in an array
 			char lastTen[10][100];
@@ -617,9 +641,6 @@ int process_command(struct command_t *command)
 			read(fd[0], &chosenDirectory, sizeof(chosenDirectory));
 			close(fd[0]);
 		}
-		//printf("%d\n",chosenDirectory);
-		//directories[chosenDirectory-1][sizeof(directories[chosenDirectory-1])-20] = '\0';
-		//printf("%s",directories[chosenDirectory-1]);
 		int chosenDirectoryIndex = -1;
 		if(chosenDirectory >= 97 && chosenDirectory <= 96+numLine) {
 			chosenDirectoryIndex = chosenDirectory-97;
@@ -630,16 +651,7 @@ int process_command(struct command_t *command)
 		r = chdir(a);
 		if (r == -1) {
 			printf("-%s: %s: %s\n", sysname, a, strerror(errno));
-		} else {
-			FILE *fptr = fopen(filename,"a");
-			if(fptr == NULL) {
-				printf("Error opening append file\n");
-			}
-			char cwd[100];
-			if(getcwd(cwd, sizeof(cwd)) != NULL) {
-				fprintf(fptr,"%s\n",cwd);
-			}
-			fclose(fptr);
+		}
 		}
 	}	
 	// Take command:
