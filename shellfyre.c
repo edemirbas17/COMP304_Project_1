@@ -320,9 +320,24 @@ int prompt(struct command_t *command)
 }
 
 int process_command(struct command_t *command);
+char filename[60];
 
 int main()
 {
+	char cwd[100];
+	getcwd(cwd,sizeof(cwd));
+	strcat(cwd,"/dest_hist.txt");
+	strcpy(filename,cwd);
+	FILE *fptr = fopen(filename,"a");
+	if(fptr == NULL) {
+		printf("Error opening cdh file");
+		exit(1);
+	}
+	if(getcwd(cwd,sizeof(cwd)) != NULL) {
+		fprintf(fptr,"%s\n",cwd);
+	}
+	fclose(fptr);
+
 	while (1)
 	{
 		struct command_t *command = malloc(sizeof(struct command_t));
@@ -384,6 +399,21 @@ void recursive_file_search(char *path,const char *option, const char *file){
 	closedir(d);
 }
 
+int getNumLine() {
+	int numLine = 0;
+	FILE *fptr = fopen(filename,"r");
+	if (fptr == NULL) {
+		printf("Error opening file\n");
+		return -1;
+	}
+	char currentline[100];
+	while(fgets(currentline,sizeof(currentline),fptr) != NULL) {
+		numLine++;
+	}
+	return numLine;
+}
+
+
 
 void take(char *path){
 	
@@ -404,6 +434,20 @@ void take(char *path){
 	}
 }
 
+int joker(){
+	
+	//char *arg = "/bin/notify-send";
+	//char *argv[] = {arg,"\"$(curl https://icanhazdadjoke.com)\"",NULL};
+       	//execv(arg,argv);
+	//system("notify-send \"$(curl https://icanhazdadjoke.com)\"");	
+ 	//system("crontab -l | { cat; echo \"* * * * *  XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send \"\"$(curl https://icanhazdadjoke.com)\"\"\"; } | crontab -");	
+	char buffer[1000] = "crontab -l | { cat; echo \"* * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke:";
+	strcat(buffer," $(curl https://icanhazdadjoke.com)\"; } | crontab -");
+	printf("%s \n",buffer);
+	system(buffer);	
+	return 0;
+}
+
 int process_command(struct command_t *command)
 {
 	int r;
@@ -418,8 +462,24 @@ int process_command(struct command_t *command)
 		if (command->arg_count > 0)
 		{
 			r = chdir(command->args[0]);
-			if (r == -1)
+			if (r == -1 ) {
 				printf("-%s: %s: %s\n", sysname, command->name, strerror(errno));
+			}
+			
+			else{
+				FILE *fptr = fopen(filename,"a");
+				if (fptr == NULL) {
+					printf("Error opening file");
+				}
+				char cwd[100];
+				if(getcwd(cwd, sizeof(cwd)) != NULL) {
+					fprintf(fptr,"%s\n",cwd);
+					//printf("%s\n",cwd);
+				}
+				fclose(fptr);
+
+			}
+			
 			return SUCCESS;
 		}
 	}
@@ -487,11 +547,109 @@ int process_command(struct command_t *command)
 		
 		recursive_file_search(".","-o",command->args[2]);
 	}
-
+	// Cdh command: 
+	else if(strcmp(command->name, "cdh") == 0) {
+		int numLine = getNumLine();
+		if (numLine > 10) {
+			//Getting the last 10 cd in an array
+			char lastTen[10][100];
+			FILE *fptr = fopen(filename,"r");
+			if (fptr ==NULL) {
+				printf("Error opening file\n");
+			}
+			int count = 0;
+			int count2 = -1;
+			char currentline[100];
+			while(fgets(currentline,sizeof(currentline),fptr) != NULL) {
+				count++;
+				if(count > numLine-10) {
+					count2++;
+					strcpy(lastTen[count2],currentline);
+					//printf("%s",lastTen[count2]);
+				}
+			}
+			fclose(fptr);
+			//Overwriting the file to have only the last 10
+			
+			fptr = fopen(filename,"w");
+			if (fptr == NULL) {
+				printf("Error opening file");
+			}
+			int i;
+			for (i = 0; i < 10; i++) {
+				//printf("%d\n",i);
+				//printf("%s",lastTen[i]);
+				fprintf(fptr,"%s",lastTen[i]);
+			}
+			fclose(fptr);
+		
+		}
+		numLine = getNumLine();
+		//printf("%d\n",numLine);
+		FILE *fptr = fopen(filename,"r");
+		if(fptr == NULL) {
+			printf("Error opening read file\n");
+		}
+		char currentline[100];
+		int count = -1;
+		char letterArray[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'};
+		char directories[numLine][100];
+		while (fgets(currentline,sizeof(currentline),fptr) != NULL) {
+			count++;
+			strcpy(directories[count],currentline);
+			printf(" %c %d) ~%s",letterArray[count],count+1,currentline);
+		}
+		fclose(fptr);
+		printf("Select directory by letter or number: \n");
+		char chosenDirectory;
+		int fd[2];
+		pipe(fd);
+		pid_t pid7 = fork();
+		if (pid7 == 0) {
+			close(fd[0]);
+			scanf("%c", &chosenDirectory);
+			write(fd[1], &chosenDirectory, sizeof(chosenDirectory));
+			close(fd[1]);
+			exit(0);
+		} else {
+			wait(NULL);
+			close(fd[1]);
+			read(fd[0], &chosenDirectory, sizeof(chosenDirectory));
+			close(fd[0]);
+		}
+		//printf("%d\n",chosenDirectory);
+		//directories[chosenDirectory-1][sizeof(directories[chosenDirectory-1])-20] = '\0';
+		//printf("%s",directories[chosenDirectory-1]);
+		int chosenDirectoryIndex = -1;
+		if(chosenDirectory >= 97 && chosenDirectory <= 96+numLine) {
+			chosenDirectoryIndex = chosenDirectory-97;
+		} else if(chosenDirectory >= 49 && chosenDirectory < 48+numLine) {
+			chosenDirectoryIndex = chosenDirectory-49;
+		}
+		char *a = strtok(directories[chosenDirectoryIndex],"\n");
+		r = chdir(a);
+		if (r == -1) {
+			printf("-%s: %s: %s\n", sysname, a, strerror(errno));
+		} else {
+			FILE *fptr = fopen(filename,"a");
+			if(fptr == NULL) {
+				printf("Error opening append file\n");
+			}
+			char cwd[100];
+			if(getcwd(cwd, sizeof(cwd)) != NULL) {
+				fprintf(fptr,"%s\n",cwd);
+			}
+			fclose(fptr);
+		}
+	}	
 	// Take command:
 	if(strcmp(command->name,"take") == 0){
 		
 		take(command->args[0]);
+	}
+
+	if(strcmp(command->name, "joker") == 0){
+		int result = joker();
 	}
 
 	pid_t pid = fork();
