@@ -322,19 +322,32 @@ int prompt(struct command_t *command)
 int process_command(struct command_t *command);
 char filename[60];
 
+int fileExists() {
+	struct stat buffer;
+	int exists = stat(filename,&buffer);
+	if(exists == 0){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 int main()
 {
 	char cwd[100];
 	getcwd(cwd,sizeof(cwd));
 	strcat(cwd,"/dest_hist.txt");
 	strcpy(filename,cwd);
+	int file_exists = fileExists();
 	FILE *fptr = fopen(filename,"a");
 	if(fptr == NULL) {
 		printf("Error opening cdh file");
 		exit(1);
 	}
-	if(getcwd(cwd,sizeof(cwd)) != NULL) {
-		fprintf(fptr,"%s\n",cwd);
+	if(file_exists == 0) {
+		if(getcwd(cwd,sizeof(cwd)) != NULL) {
+			fprintf(fptr,"%s\n",cwd);
+		}
 	}
 	fclose(fptr);
 
@@ -470,6 +483,9 @@ int directoryHasChanged() {
 	}
 	return -1;
 }
+
+
+
 
 int process_command(struct command_t *command)
 {
