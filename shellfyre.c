@@ -9,8 +9,9 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 
-
+int module_flag = 0;
 const char *sysname = "shellfyre";
 
 enum return_codes
@@ -449,15 +450,27 @@ void take(char *path){
 
 int joker(){
 	
-	//char *arg = "/bin/notify-send";
-	//char *argv[] = {arg,"\"$(curl https://icanhazdadjoke.com)\"",NULL};
-       	//execv(arg,argv);
-	//system("notify-send \"$(curl https://icanhazdadjoke.com)\"");	
- 	//system("crontab -l | { cat; echo \"* * * * *  XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send \"\"$(curl https://icanhazdadjoke.com)\"\"\"; } | crontab -");	
-	char buffer[1000] = "crontab -l | { cat; echo \"* * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke:";
-	strcat(buffer," $(curl https://icanhazdadjoke.com)\"; } | crontab -");
-	printf("%s \n",buffer);
-	system(buffer);	
+		
+	 "* * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke: \"$(curl https://icanhazdadjoke.com)\"\n";
+	//const char *string = buffer;
+	FILE *fd = fopen("cron.txt","w");
+      	fprintf(fd,"* * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke: \"$(curl https://icanhazdadjoke.com)\"\n");
+	fclose(fd);
+
+	char *args[] = {"/bin/crontab","cron.txt",NULL};
+	pid_t pid10 = fork();
+	if(pid10 == 0){
+
+		execvp(args[0],args);
+
+	}
+	
+	else{
+		wait(NULL);
+
+	}
+	
+	remove("cron.txt");	
 	return 0;
 }
 
@@ -484,6 +497,55 @@ int directoryHasChanged() {
 	return -1;
 }
 
+// Eren Custom Command 
+
+void carry(char *src, char *dest){
+
+	FILE *first;
+	FILE *second;
+	
+	first = fopen(src,"r");
+	if(!first){
+		printf("Error: Please enter valid source file! \n");
+	}
+
+	const char s[2] = "/";
+	char string[1024];
+	strcpy(string,src);
+	char *token;
+	char ch = '/';
+	char *val;
+	val = strrchr(string,ch);
+	char buffer[80];
+	strcpy(buffer,val);
+	token = strtok(buffer,s);
+	printf("%s \n",token);
+	char target_string[1024];
+	strcpy(target_string,dest);
+	strcat(target_string,"/");
+	strcat(target_string,token);
+	printf("%s \n",target_string);
+	
+	second = fopen(target_string,"w");
+	if(!second){
+		printf("Error: Please enter valid destionation! \n");
+	}
+
+	char c;
+	c = fgetc(first);
+	while(c != EOF){
+		fputc(c, second);
+		c = fgetc(first);
+	}
+
+	fclose(first);
+	fclose(second);
+	remove(src);
+
+
+	
+
+}
 
 
 
@@ -505,8 +567,22 @@ int process_command(struct command_t *command)
 	if (strcmp(command->name, "") == 0)
 		return SUCCESS;
 
-	if (strcmp(command->name, "exit") == 0)
+	if (strcmp(command->name, "exit") == 0){
+		
+		if(module_flag == 1){
+		pid_t pid9 = fork();
+		if(pid9 == 0){
+			char *binaryPath = "/bin/sudo";
+			char *args[] = {binaryPath,"rmmod","my_module",0};
+			execv(binaryPath,args);
+		}
+
+		else{
+			wait(NULL);
+		}
+		}
 		return EXIT;
+	}
 
 	if (strcmp(command->name, "cd") == 0)
 	{
@@ -676,9 +752,94 @@ int process_command(struct command_t *command)
 		take(command->args[0]);
 	}
 
+	// Joker command:
 	if(strcmp(command->name, "joker") == 0){
 		int result = joker();
 	}
+
+	// Pstraverse command:
+	if(strcmp(command->name, "pstraverse") == 0){
+		FILE *fd = popen("lsmod | grep my_module","r");
+		char buf[30];
+		if(fread(buf,1,sizeof(buf),fd) > 0){
+
+			module_flag = 1;
+		}
+		
+		else{
+		
+		
+		
+			pid_t pid8 = fork();
+			char buffer[20];
+			char *my_pid = command->args[0];
+			strcpy(buffer,"my_pid=");
+			strcat(buffer,my_pid);
+			//char string_pid[20];
+			//itoa(my_pid,string_pid,10);
+			char *my_mode = command->args[1];
+			char *mode;
+
+			if(strcmp(my_mode,"-d") == 0){
+
+				 mode = "my_mode=0";
+			}
+			else{
+				 mode = "my_mode=1";
+			}
+
+	
+
+			// Add error handling later
+	
+			if(pid8 == 0){
+				char *binaryPath = "/bin/sudo";
+				char *args[] = {binaryPath,"insmod","my_module.ko",buffer,mode,0};
+				execv(binaryPath,args);	
+			}
+
+			else{
+
+				wait(NULL);
+				module_flag = 1;
+			}
+		}
+
+	}
+	// Eray's custom command
+	if(strcmp(command->name, "shoplist") == 0) {
+		char *shopfile = "shoplist.txt";
+		if(strcmp(command->args[0],"-a") == 0 && command->arg_count == 3) {
+			FILE *sfp = fopen(shopfile,"a");
+			fprintf(sfp,"%s (%s)\n",command->args[1],command->args[2]);
+			fclose(sfp);
+		}
+		if(strcmp(command->args[0],"-l") == 0) {
+			FILE *sfp = fopen(shopfile,"r");
+			int count = 0;
+			char currentline[100];
+			while(fgets(currentline,sizeof(currentline),sfp) != NULL) {
+				count++;
+				printf("%d- %s",count,currentline);
+			}
+			fclose(sfp);
+			if(count == 0) {
+				printf("No items in shopping list\n");
+			}
+		}
+		if(strcmp(command->args[0],"-d") == 0) {
+			FILE *sfp = fopen(shopfile,"w");
+			fclose(sfp);
+			printf("Shopping list cleared.\n");
+		}
+	
+
+	}
+	
+	// Eren's Custom Command: 
+	if(strcmp(command->name,"carry") == 0){
+		carry(command->args[0],command->args[1]);
+	}	
 
 	pid_t pid = fork();
 
@@ -693,7 +854,7 @@ int process_command(struct command_t *command)
 		// increase args size by 2
 		command->args = (char **)realloc(
 			command->args, sizeof(char *) * (command->arg_count += 2));
-
+		
 		// shift everything forward by 1
 		for (int i = command->arg_count - 2; i > 0; --i)
 			command->args[i] = command->args[i - 1];
