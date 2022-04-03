@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
+// Eren Berke Demirbas:0064627
+// Eray Sozer:0069335 
 int module_flag = 0;
 const char *sysname = "shellfyre";
 
@@ -454,7 +456,7 @@ int joker(){
 	 "* * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke: \"$(curl https://icanhazdadjoke.com)\"\n";
 	//const char *string = buffer;
 	FILE *fd = fopen("cron.txt","w");
-      	fprintf(fd,"* * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke: \"$(curl https://icanhazdadjoke.com)\"\n");
+      	fprintf(fd,"15 * * * * XDG_RUNTIME_DIR=/run/user/$(id -u) notify-send Joke: \"$(curl https://icanhazdadjoke.com)\"\n");
 	fclose(fd);
 
 	char *args[] = {"/bin/crontab","cron.txt",NULL};
@@ -519,12 +521,12 @@ void carry(char *src, char *dest){
 	char buffer[80];
 	strcpy(buffer,val);
 	token = strtok(buffer,s);
-	printf("%s \n",token);
+	//printf("%s \n",token);
 	char target_string[1024];
 	strcpy(target_string,dest);
 	strcat(target_string,"/");
 	strcat(target_string,token);
-	printf("%s \n",target_string);
+	//printf("%s \n",target_string);
 	
 	second = fopen(target_string,"w");
 	if(!second){
@@ -639,6 +641,7 @@ int process_command(struct command_t *command)
 					strcpy(buffer,".");
 					strcat(buffer,"/");
 					strcat(buffer,dir->d_name);
+					printf("%s \n",buffer);
 					pid_t pid1 = fork();
 					if(pid1 == 0){
 					char *binaryPath = "/bin/xdg-open";
